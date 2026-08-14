@@ -32,6 +32,30 @@ def _log_tail() -> str:
         return "Forge log is unavailable"
 
 
+def _repair_volume_symlinks(directory: Path) -> None:
+    """Remap absolute Pod links after the volume is mounted in Serverless."""
+    for root, dirnames, filenames in os.walk(directory, followlinks=False):
+        for name in [*dirnames, *filenames]:
+            link = Path(root) / name
+            if not link.is_symlink():
+                continue
+            try:
+                old_target = os.readlink(link)
+            except OSError:
+                continue
+            if not old_target.startswith("/workspace/"):
+                continue
+            new_target = Path("/runpod-volume") / old_target.removeprefix("/workspace/")
+            if not new_target.exists():
+                new_target.mkdir(parents=True, exist_ok=True)
+            link.unlink()
+            link.symlink_to(new_target, target_is_directory=True)
+            print(
+                f"[forge] remapped volume link {link}: {old_target} -> {new_target}",
+                flush=True,
+            )
+
+
 def _ready() -> bool:
     try:
         response = httpx.get(f"{BASE}/sdapi/v1/sd-models", timeout=3)
@@ -67,7 +91,8 @@ def ensure_forge() -> None:
         if _ready():
             return
         directory, python = _paths()
-        log = open(LOG_PATH, "a", encoding="utf-8")
+        _repair_volume_symlinks(directory)
+        log = open(LOG_PATH, "w", encoding="utf-8")
         env = os.environ.copy()
         env["VIRTUAL_ENV"] = str(python.parent.parent)
         env["PATH"] = f"{python.parent}:{env.get('PATH', '')}"
