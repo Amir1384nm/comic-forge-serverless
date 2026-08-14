@@ -35,11 +35,13 @@ def _ready() -> bool:
 
 def _paths() -> tuple[Path, Path]:
     dirs = [
+        Path("/runpod-volume/stable-diffusion-webui-forge"),
         Path("/workspace/stable-diffusion-webui-forge"),
         Path("/stable-diffusion-webui-forge"),
     ]
     pythons = [
         Path("/venv/bin/python"),
+        Path("/runpod-volume/venvs/stable-diffusion-webui-forge/bin/python"),
         Path("/workspace/venvs/stable-diffusion-webui-forge/bin/python"),
     ]
     directory = next((p for p in dirs if (p / "launch.py").is_file()), None)
@@ -57,7 +59,7 @@ def ensure_forge() -> None:
         if _ready():
             return
         directory, python = _paths()
-        log = open("/workspace/serverless-forge.log", "a", encoding="utf-8")
+        log = open("/tmp/serverless-forge.log", "a", encoding="utf-8")
         env = os.environ.copy()
         env["VIRTUAL_ENV"] = str(python.parent.parent)
         env["PATH"] = f"{python.parent}:{env.get('PATH', '')}"
@@ -117,4 +119,3 @@ def handler(job: dict) -> dict:
 
 
 runpod.serverless.start({"handler": handler})
-

@@ -18,7 +18,8 @@ Safe endpoint configuration:
 - Scaler: `QUEUE_DELAY`, value `4`
 - FlashBoot: enabled
 - Execution timeout: `600000` ms
-- Network Volume: the same volume used by the primary Pod
+- Network Volume: the same volume used by the primary Pod (mounted at
+  `/runpod-volume` on Serverless)
 - Data center: the Network Volume's data center
 
 The application keeps Serverless disabled until the built image and endpoint

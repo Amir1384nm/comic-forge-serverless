@@ -36,11 +36,16 @@ def ensure_comfy() -> None:
     with _start_lock:
         if _ready():
             return
-        directory = Path("/workspace/ComfyUI")
-        python = Path("/workspace/venvs/comfyui/bin/python")
-        if not (directory / "main.py").is_file() or not python.is_file():
+        directories = [Path("/runpod-volume/ComfyUI"), Path("/workspace/ComfyUI")]
+        pythons = [
+            Path("/runpod-volume/venvs/comfyui/bin/python"),
+            Path("/workspace/venvs/comfyui/bin/python"),
+        ]
+        directory = next((p for p in directories if (p / "main.py").is_file()), None)
+        python = next((p for p in pythons if p.is_file()), None)
+        if not directory or not python:
             raise RuntimeError("Persistent ComfyUI installation is missing")
-        log = open("/workspace/serverless-comfy.log", "a", encoding="utf-8")
+        log = open("/tmp/serverless-comfy.log", "a", encoding="utf-8")
         command = [
             str(python), "main.py", "--listen", "127.0.0.1",
             "--port", str(PORT),
@@ -133,4 +138,3 @@ def handler(job: dict) -> dict:
 
 
 runpod.serverless.start({"handler": handler})
-
