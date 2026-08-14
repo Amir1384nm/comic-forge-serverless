@@ -82,6 +82,22 @@ def _upload(item: dict) -> None:
     response.raise_for_status()
 
 
+def _list_loras() -> list[str]:
+    """List every LoRA on the persistent volume without starting ComfyUI."""
+    roots = [
+        Path("/runpod-volume/ComfyUI/models/loras"),
+        Path("/workspace/ComfyUI/models/loras"),
+    ]
+    names: set[str] = set()
+    for root in roots:
+        if not root.is_dir():
+            continue
+        for path in root.rglob("*"):
+            if path.is_file() and path.suffix.lower() in {".safetensors", ".ckpt", ".pt"}:
+                names.add(path.relative_to(root).as_posix())
+    return sorted(names, key=str.casefold)
+
+
 def _run_workflow(workflow: dict, timeout: int) -> bytes:
     if not isinstance(workflow, dict) or not workflow or len(workflow) > 160:
         raise ValueError("invalid ComfyUI workflow")
@@ -123,7 +139,10 @@ def _run_workflow(workflow: dict, timeout: int) -> bytes:
 
 def handler(job: dict) -> dict:
     request = job.get("input") or {}
-    if request.get("operation") != "workflow":
+    operation = request.get("operation")
+    if operation == "list_loras":
+        return {"loras": _list_loras()}
+    if operation != "workflow":
         raise ValueError("unsupported ComfyUI operation")
     ensure_comfy()
     for item in request.get("images") or []:
