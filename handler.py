@@ -46,6 +46,14 @@ def _repair_volume_symlinks(directory: Path) -> None:
             if not old_target.startswith("/workspace/"):
                 continue
             new_target = Path("/runpod-volume") / old_target.removeprefix("/workspace/")
+            if new_target == link:
+                link.unlink()
+                link.mkdir(parents=True, exist_ok=True)
+                print(
+                    f"[forge] replaced self-referencing volume link {link}: {old_target}",
+                    flush=True,
+                )
+                continue
             if not new_target.exists():
                 new_target.mkdir(parents=True, exist_ok=True)
             link.unlink()
