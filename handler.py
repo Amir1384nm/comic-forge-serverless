@@ -22,6 +22,14 @@ ALLOWED_OPERATIONS = {
 
 _start_lock = threading.Lock()
 _forge_process: subprocess.Popen | None = None
+LOG_PATH = Path("/tmp/serverless-forge.log")
+
+
+def _log_tail() -> str:
+    try:
+        return LOG_PATH.read_text(encoding="utf-8", errors="replace")[-4000:]
+    except OSError:
+        return "Forge log is unavailable"
 
 
 def _ready() -> bool:
@@ -59,10 +67,11 @@ def ensure_forge() -> None:
         if _ready():
             return
         directory, python = _paths()
-        log = open("/tmp/serverless-forge.log", "a", encoding="utf-8")
+        log = open(LOG_PATH, "a", encoding="utf-8")
         env = os.environ.copy()
         env["VIRTUAL_ENV"] = str(python.parent.parent)
         env["PATH"] = f"{python.parent}:{env.get('PATH', '')}"
+        print(f"[forge] starting directory={directory} python={python}", flush=True)
         _forge_process = subprocess.Popen(
             [
                 str(python), "launch.py", "--listen", "--port", str(PORT),
@@ -77,10 +86,13 @@ def ensure_forge() -> None:
                 return
             if _forge_process.poll() is not None:
                 raise RuntimeError(
-                    f"Forge exited during boot with code {_forge_process.returncode}"
+                    f"Forge exited during boot with code {_forge_process.returncode}; "
+                    f"log tail:\n{_log_tail()}"
                 )
             time.sleep(3)
-        raise TimeoutError(f"Forge did not become ready in {START_TIMEOUT}s")
+        raise TimeoutError(
+            f"Forge did not become ready in {START_TIMEOUT}s; log tail:\n{_log_tail()}"
+        )
 
 
 def _validate_payload(payload: dict) -> None:
