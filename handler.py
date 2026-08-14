@@ -69,12 +69,12 @@ def _repair_volume_symlinks(directory: Path) -> None:
             new_target.unlink()
         if not new_target.exists():
             new_target.mkdir(parents=True, exist_ok=True)
-            link.unlink()
-            link.symlink_to(new_target, target_is_directory=True)
-            print(
-                f"[forge] remapped volume link {link}: {old_target} -> {new_target}",
-                flush=True,
-            )
+        link.unlink()
+        link.symlink_to(new_target, target_is_directory=True)
+        print(
+            f"[forge] remapped volume link {link}: {old_target} -> {new_target}",
+            flush=True,
+        )
 
 
 def _ready() -> bool:
