@@ -34,6 +34,7 @@ def _log_tail() -> str:
 
 def _repair_volume_symlinks(directory: Path) -> None:
     """Remap absolute Pod links after the volume is mounted in Serverless."""
+    remaps: list[tuple[Path, str, Path]] = []
     for root, dirnames, filenames in os.walk(directory, followlinks=False):
         for name in [*dirnames, *filenames]:
             link = Path(root) / name
@@ -46,16 +47,28 @@ def _repair_volume_symlinks(directory: Path) -> None:
             if not old_target.startswith("/workspace/"):
                 continue
             new_target = Path("/runpod-volume") / old_target.removeprefix("/workspace/")
-            if new_target == link:
-                link.unlink()
-                link.mkdir(parents=True, exist_ok=True)
-                print(
-                    f"[forge] replaced self-referencing volume link {link}: {old_target}",
-                    flush=True,
-                )
-                continue
-            if not new_target.exists():
-                new_target.mkdir(parents=True, exist_ok=True)
+            remaps.append((link, old_target, new_target))
+
+    # Resolve self-referencing directory links first, since other links can target them.
+    for link, old_target, new_target in remaps:
+        if os.path.abspath(new_target) != os.path.abspath(link):
+            continue
+        link.unlink(missing_ok=True)
+        link.mkdir(parents=True, exist_ok=True)
+        print(
+            f"[forge] replaced self-referencing volume link {link}: {old_target}",
+            flush=True,
+        )
+
+    for link, old_target, new_target in remaps:
+        if os.path.abspath(new_target) == os.path.abspath(link):
+            continue
+        if not link.is_symlink():
+            continue
+        if new_target.is_symlink() and not new_target.exists():
+            new_target.unlink()
+        if not new_target.exists():
+            new_target.mkdir(parents=True, exist_ok=True)
             link.unlink()
             link.symlink_to(new_target, target_is_directory=True)
             print(
