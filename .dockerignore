@@ -1,0 +1,4 @@
+*
+!deploy/
+!deploy/cached_workers/
+!deploy/cached_workers/**

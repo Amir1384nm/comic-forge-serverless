@@ -1,0 +1,63 @@
+{
+  "schema": 1,
+  "purpose": "minimal-source-only RunPod cached-worker image builds",
+  "contains_model_weights": false,
+  "contains_secrets": false,
+  "files": [
+    {
+      "path": "deploy/cached_workers/Dockerfile.sdxl",
+      "size": 674,
+      "sha256": "1b152a8d6983b795a47291e4460ee8f0755bea7440cd49f55655ab94b8d26186"
+    },
+    {
+      "path": "deploy/cached_workers/Dockerfile.qwen",
+      "size": 2116,
+      "sha256": "167b31d29f8f28a046cf5950b7bdd843808194a59bc5616b16f8542c0b8b8e44"
+    },
+    {
+      "path": "deploy/cached_workers/Dockerfile.video",
+      "size": 1523,
+      "sha256": "1f77ab986f61b2e6278e258396183c0fc3d1f9f413d3d6879c9fdf3807b686ab"
+    },
+    {
+      "path": "deploy/cached_workers/README.md",
+      "size": 1256,
+      "sha256": "d976b326771312d9a233f75e3dc5b04905e44755627cc6e2d51e87af75ae305a"
+    },
+    {
+      "path": "deploy/cached_workers/requirements-worker.lock",
+      "size": 29,
+      "sha256": "df0f702f0c4cc325e7454167e6a258df191b6c3790f3b52c35a98465dfd94020"
+    },
+    {
+      "path": "deploy/cached_workers/common/__init__.py",
+      "size": 56,
+      "sha256": "0c7f69eeb9bcd4f780b76c3eb0896fd21f3673824e00bd2c20fac21caa59ca78"
+    },
+    {
+      "path": "deploy/cached_workers/common/cached_model.py",
+      "size": 6073,
+      "sha256": "7acbd039bd96051f03046460ea16d9358f03ccfdc32c9860e6f54c7c89e82fee"
+    },
+    {
+      "path": "deploy/cached_workers/common/comfy_runner.py",
+      "size": 7857,
+      "sha256": "47f3aa18399f34d1073277b0f6c9a8366d8decc7b34bf49ec4228a62d81fd95a"
+    },
+    {
+      "path": "deploy/cached_workers/sdxl/handler.py",
+      "size": 5597,
+      "sha256": "afc8f3a0d0527e7fa7702a3abe54a3e65e1d31049758e191034a714edec960e6"
+    },
+    {
+      "path": "deploy/cached_workers/qwen/handler.py",
+      "size": 1379,
+      "sha256": "1dc2403d47940ed9ff8d3583d8b574e9ba7eaedc3415cef5ad052b2bd8a4730a"
+    },
+    {
+      "path": "deploy/cached_workers/video/handler.py",
+      "size": 1379,
+      "sha256": "c5b3c07f6ca7b5165d926f2d7bde7cf9fa2b54b96ca222b84852cf68125a333d"
+    }
+  ]
+}
