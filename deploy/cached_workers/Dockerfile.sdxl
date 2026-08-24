@@ -1,4 +1,4 @@
-FROM nvidia/cuda:12.8.1-cudnn-runtime-ubuntu22.04
+FROM nvidia/cuda:12.8.1-base-ubuntu22.04
 
 ARG DEBIAN_FRONTEND=noninteractive
 ARG FORGE_COMMIT=37386592add37c0eeb5ab89b9474d299dd8eea84
@@ -19,15 +19,19 @@ RUN git init /opt/stable-diffusion-webui-forge \
 # explicitly Blackwell-compatible. The RunPod handler stays in a second venv
 # because Forge pins an older httpx/httpcore pair for Gradio.
 RUN python3 -m venv /opt/forge-venv \
-    && /opt/forge-venv/bin/pip install --no-cache-dir --upgrade pip==25.1.1 \
-    && /opt/forge-venv/bin/pip install --no-cache-dir \
+    && /opt/forge-venv/bin/pip install --no-cache-dir --upgrade pip==25.1.1
+
+RUN /opt/forge-venv/bin/pip install --no-cache-dir \
        torch==2.8.0 torchvision==0.23.0 \
-       --index-url https://download.pytorch.org/whl/cu128 \
-    && /opt/forge-venv/bin/pip install --no-cache-dir \
-       -r /opt/stable-diffusion-webui-forge/requirements_versions.txt \
-    && python3 -m venv /opt/cached-worker-venv \
-    && /opt/cached-worker-venv/bin/pip install --no-cache-dir --upgrade pip==25.1.1 \
-    && /opt/cached-worker-venv/bin/pip install --no-cache-dir \
+       --index-url https://download.pytorch.org/whl/cu128
+
+RUN /opt/forge-venv/bin/pip install --no-cache-dir \
+       -r /opt/stable-diffusion-webui-forge/requirements_versions.txt
+
+RUN python3 -m venv /opt/cached-worker-venv \
+    && /opt/cached-worker-venv/bin/pip install --no-cache-dir --upgrade pip==25.1.1
+
+RUN /opt/cached-worker-venv/bin/pip install --no-cache-dir \
        runpod==1.12.0 httpx==0.28.1
 
 COPY deploy/cached_workers/common /opt/cached-worker/common

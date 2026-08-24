@@ -1,4 +1,4 @@
-FROM nvidia/cuda:12.8.1-cudnn-runtime-ubuntu22.04
+FROM nvidia/cuda:12.8.1-base-ubuntu22.04
 
 ARG DEBIAN_FRONTEND=noninteractive
 ARG COMFY_COMMIT=783545f689a0af730065994b46b382ae24844c99
@@ -15,12 +15,15 @@ RUN git init /opt/ComfyUI \
     && rm -rf /opt/ComfyUI/.git
 
 RUN python3 -m venv /opt/venv \
-    && /opt/venv/bin/pip install --no-cache-dir --upgrade pip==25.1.1 \
-    && /opt/venv/bin/pip install --no-cache-dir \
+    && /opt/venv/bin/pip install --no-cache-dir --upgrade pip==25.1.1
+
+RUN /opt/venv/bin/pip install --no-cache-dir \
        torch==2.8.0 torchvision==0.23.0 torchaudio==2.8.0 \
-       --index-url https://download.pytorch.org/whl/cu128 \
-    && /opt/venv/bin/pip install --no-cache-dir -r /opt/ComfyUI/requirements.txt \
-    && /opt/venv/bin/pip install --no-cache-dir runpod==1.12.0 httpx==0.28.1
+       --index-url https://download.pytorch.org/whl/cu128
+
+RUN /opt/venv/bin/pip install --no-cache-dir -r /opt/ComfyUI/requirements.txt
+
+RUN /opt/venv/bin/pip install --no-cache-dir runpod==1.12.0 httpx==0.28.1
 
 COPY deploy/cached_workers/common /opt/cached-worker/common
 COPY deploy/cached_workers/video/handler.py /opt/cached-worker/handler.py
