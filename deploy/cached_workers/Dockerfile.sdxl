@@ -1,19 +1,15 @@
 FROM runpod/worker-comfyui:5.8.6-base-cuda12.8.1
 
-RUN uv pip install runpod==1.12.0 httpx==0.28.1
-
 COPY deploy/cached_workers/common /opt/cached-worker/common
-COPY deploy/cached_workers/sdxl/comfy_workflow.py /opt/cached-worker/comfy_workflow.py
-COPY deploy/cached_workers/sdxl/comfy_handler.py /opt/cached-worker/handler.py
+COPY deploy/cached_workers/sdxl/configure_cached_paths.py /opt/cached-worker/configure_cached_paths.py
+COPY deploy/cached_workers/sdxl/start_sdxl.sh /opt/cached-worker/start_sdxl.sh
+
+RUN chmod +x /opt/cached-worker/start_sdxl.sh
 
 ENV PYTHONUNBUFFERED=1 \
     PYTHONPATH=/opt/cached-worker \
-    COMFY_ROOT=/comfyui \
-    COMFY_PYTHON=/opt/venv/bin/python \
-    COMFY_PORT=8188 \
     HF_HUB_OFFLINE=1 \
     TRANSFORMERS_OFFLINE=1 \
-    DIFFUSERS_OFFLINE=1 \
-    RUNPOD_INIT_TIMEOUT=800
+    DIFFUSERS_OFFLINE=1
 
-CMD ["/opt/venv/bin/python", "-u", "/opt/cached-worker/handler.py"]
+CMD ["/opt/cached-worker/start_sdxl.sh"]
