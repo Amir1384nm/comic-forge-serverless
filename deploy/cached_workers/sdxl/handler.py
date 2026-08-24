@@ -29,8 +29,10 @@ ALLOWED_OPERATIONS = {
 }
 LOG_PATH = Path("/tmp/cached-forge.log")
 _lock = threading.Lock()
+_warmup_lock = threading.Lock()
 _process: subprocess.Popen | None = None
 _initialized_seconds: float | None = None
+_cuda_warmed = False
 
 force_offline_mode()
 SNAPSHOT = resolve_snapshot_path(REPO_ID)
@@ -132,9 +134,48 @@ def _validate_payload(payload: dict) -> None:
         raise ValueError("This endpoint serves a different isolated checkpoint")
 
 
+def warmup() -> dict:
+    """Start Forge and execute one tiny inference once per worker process."""
+    global _cuda_warmed
+    total_started = time.monotonic()
+    initialized = ensure_forge()
+    with _warmup_lock:
+        if not _cuda_warmed:
+            response = httpx.post(
+                BASE + ALLOWED_OPERATIONS["txt2img"],
+                json={
+                    "prompt": "warmup",
+                    "negative_prompt": "",
+                    "width": 256,
+                    "height": 256,
+                    "steps": 1,
+                    "cfg_scale": 1,
+                    "batch_size": 1,
+                    "override_settings": {"sd_model_checkpoint": CHECKPOINT},
+                },
+                timeout=300,
+            )
+            if response.status_code != 200:
+                raise RuntimeError(
+                    f"Forge warmup returned HTTP {response.status_code}: "
+                    f"{response.text[:500]}; forge_log_tail={_log_tail()}"
+                )
+            _cuda_warmed = True
+    return {
+        "ready": True,
+        "checkpoint": CHECKPOINT,
+        "metrics": {
+            "initialization_seconds": initialized,
+            "total_handler_seconds": round(time.monotonic() - total_started, 3),
+        },
+    }
+
+
 def handler(job: dict) -> dict:
     request = job.get("input") or {}
     operation = str(request.get("operation") or "")
+    if operation == "warmup":
+        return warmup()
     if operation not in ALLOWED_OPERATIONS:
         raise ValueError("Unsupported Forge operation")
     payload = request.get("payload") or {}
