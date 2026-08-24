@@ -138,26 +138,31 @@ def link_tree(source: Path | str, destination: Path | str) -> None:
         target.symlink_to(path)
 
 
-def write_comfy_extra_paths(snapshot: Path | str, output: Path | str) -> Path:
+def write_comfy_extra_paths(
+    snapshot: Path | str,
+    output: Path | str,
+    *,
+    layout: dict[str, str] | None = None,
+) -> Path:
     """Point ComfyUI at ``snapshot/models``; only a tiny YAML file is written."""
     model_root = Path(snapshot).resolve() / "models"
     if not model_root.is_dir():
         raise CachedModelError("Cached bundle has no models directory")
     output = Path(output)
     output.parent.mkdir(parents=True, exist_ok=True)
-    values = [
-        "cached_bundle:",
-        f"  base_path: {model_root.as_posix()}",
-        "  checkpoints: checkpoints",
-        "  diffusion_models: diffusion_models",
-        "  unet: unet",
-        "  text_encoders: text_encoders",
-        "  clip: text_encoders",
-        "  vae: vae",
-        "  loras: loras",
-        "  clip_vision: clip_vision",
-        "  controlnet: controlnet",
-    ]
+    paths = {
+        "checkpoints": "checkpoints",
+        "diffusion_models": "diffusion_models",
+        "unet": "unet",
+        "text_encoders": "text_encoders",
+        "clip": "text_encoders",
+        "vae": "vae",
+        "loras": "loras",
+        "clip_vision": "clip_vision",
+        "controlnet": "controlnet",
+    }
+    paths.update(layout or {})
+    values = ["cached_bundle:", f"  base_path: {model_root.as_posix()}"]
+    values.extend(f"  {key}: {value}" for key, value in paths.items())
     output.write_text("\n".join(values) + "\n", encoding="utf-8")
     return output
-

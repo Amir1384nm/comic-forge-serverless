@@ -22,7 +22,13 @@ from .cached_model import (
 
 
 class ComfyRunner:
-    def __init__(self, *, repo_id: str, port: int = 8188):
+    def __init__(
+        self,
+        *,
+        repo_id: str,
+        port: int = 8188,
+        model_layout: dict[str, str] | None = None,
+    ):
         force_offline_mode()
         self.repo_id = repo_id
         self.port = int(port)
@@ -30,8 +36,11 @@ class ComfyRunner:
         self.comfy_root = Path(os.environ.get("COMFY_ROOT", "/opt/ComfyUI"))
         self.snapshot = resolve_snapshot_path(repo_id)
         self.manifest = verify_bundle(self.snapshot)
+        self.model_layout = dict(model_layout or {})
         self.extra_paths = write_comfy_extra_paths(
-            self.snapshot, Path("/tmp/cached-extra-model-paths.yaml")
+            self.snapshot,
+            Path("/tmp/cached-extra-model-paths.yaml"),
+            layout=self.model_layout,
         )
         self._lock = threading.Lock()
         self._process: subprocess.Popen | None = None
@@ -92,7 +101,7 @@ class ComfyRunner:
             )
 
     def list_loras(self) -> list[str]:
-        root = self.snapshot / "models" / "loras"
+        root = self.snapshot / "models" / self.model_layout.get("loras", "loras")
         if not root.is_dir():
             return []
         return sorted(
@@ -186,4 +195,3 @@ class ComfyRunner:
                         "size": len(response.content),
                     })
         return artifacts
-
