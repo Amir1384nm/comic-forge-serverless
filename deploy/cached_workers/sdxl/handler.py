@@ -50,7 +50,11 @@ def _forge_root() -> Path:
 
 
 def _python() -> Path:
-    candidates = (Path("/venv/bin/python"), Path("/opt/venv/bin/python"))
+    candidates = (
+        Path("/opt/forge-venv/bin/python"),
+        Path("/venv/bin/python"),
+        Path("/opt/venv/bin/python"),
+    )
     python = next((path for path in candidates if path.is_file()), None)
     if not python:
         raise RuntimeError("Forge Python runtime is missing from worker image")
@@ -93,7 +97,7 @@ def ensure_forge() -> float:
         log = LOG_PATH.open("w", encoding="utf-8")
         command = [
             str(_python()), "launch.py", "--listen", "--port", str(PORT),
-            "--api", "--xformers", "--enable-insecure-extension-access",
+            "--api", "--disable-xformers", "--enable-insecure-extension-access",
             "--no-half-vae", "--skip-install", "--ckpt", str(checkpoint),
         ]
         _process = subprocess.Popen(
