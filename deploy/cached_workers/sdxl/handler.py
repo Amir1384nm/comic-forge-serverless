@@ -144,7 +144,10 @@ def handler(job: dict) -> dict:
         BASE + ALLOWED_OPERATIONS[operation], json=payload, timeout=timeout
     )
     if response.status_code != 200:
-        raise RuntimeError(f"Forge returned HTTP {response.status_code}: {response.text[:500]}")
+        raise RuntimeError(
+            f"Forge returned HTTP {response.status_code}: {response.text[:500]}; "
+            f"forge_log_tail={_log_tail()}"
+        )
     data = response.json()
     if not isinstance(data, dict) or not data.get("images"):
         raise RuntimeError("Forge returned no images")
