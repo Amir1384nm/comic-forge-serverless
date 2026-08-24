@@ -1,11 +1,15 @@
-FROM nvidia/cuda:12.8.1-base-ubuntu22.04
+# Use RunPod's verified PyTorch base so the heavy CUDA/Torch layers have a
+# realistic chance of already being present on Serverless hosts.  Rebuilding
+# those layers in our own image made every cold worker pull ~7.1 GB before
+# RunPod could even begin cached-model initialization.
+FROM runpod/pytorch:1.0.2-cu1281-torch280-ubuntu2404
 
 ARG DEBIAN_FRONTEND=noninteractive
 ARG FORGE_COMMIT=37386592add37c0eeb5ab89b9474d299dd8eea84
 
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
-       ca-certificates git libgl1 libglib2.0-0 libgomp1 python3 python3-pip python3-venv \
+       ca-certificates git libgl1 libglib2.0-0 libgomp1 python3-venv \
     && rm -rf /var/lib/apt/lists/*
 
 RUN git init /opt/stable-diffusion-webui-forge \
@@ -15,15 +19,12 @@ RUN git init /opt/stable-diffusion-webui-forge \
     && git -C /opt/stable-diffusion-webui-forge checkout --detach FETCH_HEAD \
     && rm -rf /opt/stable-diffusion-webui-forge/.git
 
-# Forge retains its tested Python dependency set, while the CUDA stack is
-# explicitly Blackwell-compatible. The RunPod handler stays in a second venv
-# because Forge pins an older httpx/httpcore pair for Gradio.
-RUN python3 -m venv /opt/forge-venv \
+# Forge retains its tested Python dependency set while reusing the base
+# image's Blackwell-compatible torch 2.8 / CUDA 12.8 installation. The RunPod
+# handler stays in a second venv because Forge pins an older httpx/httpcore
+# pair for Gradio.
+RUN python3 -m venv --system-site-packages /opt/forge-venv \
     && /opt/forge-venv/bin/pip install --no-cache-dir --upgrade pip==25.1.1
-
-RUN /opt/forge-venv/bin/pip install --no-cache-dir \
-       torch==2.8.0 torchvision==0.23.0 \
-       --index-url https://download.pytorch.org/whl/cu128
 
 RUN /opt/forge-venv/bin/pip install --no-cache-dir \
        -r /opt/stable-diffusion-webui-forge/requirements_versions.txt
