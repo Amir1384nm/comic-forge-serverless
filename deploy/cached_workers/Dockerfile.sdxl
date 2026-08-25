@@ -1,5 +1,18 @@
 FROM runpod/worker-comfyui:5.8.6-base-cuda12.8.1
 
+ARG CONTROLNET_AUX_REV=e8b689a513c3e6b63edc44066560ca5919c0576e
+ARG IPADAPTER_REV=a0f451a5113cf9becb0847b92884cb10cbdec0ef
+
+RUN git clone https://github.com/Fannovel16/comfyui_controlnet_aux.git \
+        /comfyui/custom_nodes/comfyui_controlnet_aux \
+    && cd /comfyui/custom_nodes/comfyui_controlnet_aux \
+    && git checkout "$CONTROLNET_AUX_REV" \
+    && /opt/venv/bin/pip install --no-cache-dir -r requirements.txt \
+    && git clone https://github.com/cubiq/ComfyUI_IPAdapter_plus.git \
+        /comfyui/custom_nodes/ComfyUI_IPAdapter_plus \
+    && cd /comfyui/custom_nodes/ComfyUI_IPAdapter_plus \
+    && git checkout "$IPADAPTER_REV"
+
 COPY deploy/cached_workers/common /opt/cached-worker/common
 COPY deploy/cached_workers/sdxl/configure_cached_paths.py /opt/cached-worker/configure_cached_paths.py
 COPY deploy/cached_workers/sdxl/start_sdxl.sh /opt/cached-worker/start_sdxl.sh
@@ -8,6 +21,7 @@ RUN chmod +x /opt/cached-worker/start_sdxl.sh
 
 ENV PYTHONUNBUFFERED=1 \
     PYTHONPATH=/opt/cached-worker \
+    AUX_ANNOTATOR_CKPTS_PATH=/comfyui/custom_nodes/comfyui_controlnet_aux/ckpts \
     HF_HUB_OFFLINE=1 \
     TRANSFORMERS_OFFLINE=1 \
     DIFFUSERS_OFFLINE=1
