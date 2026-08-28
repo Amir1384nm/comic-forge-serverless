@@ -11,7 +11,9 @@ from common.comfy_runner import ComfyRunner
 
 
 RUNNER = ComfyRunner(
-    repo_id=os.environ["MODEL_REPO_ID"],
+    # Network Volume workers intentionally have no Hugging Face repository.
+    # ``ComfyRunner`` resolves MODEL_SOURCE before it needs a cached repo.
+    repo_id=os.environ.get("MODEL_REPO_ID"),
     port=int(os.environ.get("COMFY_PORT", "8188")),
 )
 

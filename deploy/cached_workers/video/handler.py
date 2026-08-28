@@ -11,7 +11,9 @@ from common.comfy_runner import ComfyRunner
 
 
 RUNNER = ComfyRunner(
-    repo_id=os.environ["MODEL_REPO_ID"],
+    # Video follows the same source contract as Qwen: a Volume worker does
+    # not download or require a Hugging Face repository at process import.
+    repo_id=os.environ.get("MODEL_REPO_ID"),
     port=int(os.environ.get("COMFY_PORT", "8188")),
 )
 
