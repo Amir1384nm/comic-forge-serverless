@@ -25,10 +25,18 @@ RUN git init /opt/ComfyUI \
 
 # The official image owns its Python environment.  Use its ``pip``/``python``
 # pair rather than Ubuntu's externally-managed ``python3`` interpreter.
-RUN pip install --no-cache-dir --upgrade pip==25.1.1 \
-    && pip install --no-cache-dir -r /opt/ComfyUI/requirements.txt \
-    && pip install --no-cache-dir -r /opt/ComfyUI/custom_nodes/ComfyUI-GGUF/requirements.txt \
-    && pip install --no-cache-dir runpod==1.12.0 httpx==0.28.1
+RUN pip install --no-cache-dir --upgrade pip==25.1.1
+
+# The selected RunPod base already supplies the pinned CUDA 12.8 / Torch 2.8
+# triplet.  Letting ComfyUI's unpinned requirements replace it downloads a
+# second multi-GB CUDA stack and can select an incompatible newer build.
+RUN grep -Ev '^(torch|torchvision|torchaudio)$' /opt/ComfyUI/requirements.txt \
+       > /tmp/comfy-requirements-without-torch.txt \
+    && pip install --no-cache-dir -r /tmp/comfy-requirements-without-torch.txt
+
+RUN pip install --no-cache-dir -r /opt/ComfyUI/custom_nodes/ComfyUI-GGUF/requirements.txt
+
+RUN pip install --no-cache-dir runpod==1.12.0 httpx==0.28.1
 
 COPY deploy/cached_workers/common /opt/cached-worker/common
 COPY deploy/cached_workers/qwen/handler.py /opt/cached-worker/handler.py
