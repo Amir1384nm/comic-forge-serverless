@@ -7,11 +7,11 @@ import os
 from pathlib import Path
 
 try:
-    from common.cached_model import force_offline_mode, resolve_snapshot_path
+    from common.cached_model import force_offline_mode, resolve_model_source
 except ModuleNotFoundError:  # Local test/import path.
     from deploy.cached_workers.common.cached_model import (
         force_offline_mode,
-        resolve_snapshot_path,
+        resolve_model_source,
     )
 
 
@@ -35,8 +35,8 @@ def _verify_depth_asset(path: Path) -> None:
 
 def configure(output: Path | str = "/comfyui/extra_model_paths.yaml") -> Path:
     force_offline_mode()
-    snapshot = resolve_snapshot_path(os.environ["MODEL_REPO_ID"])
-    model_root = snapshot / "models"
+    source = resolve_model_source(os.environ.get("MODEL_REPO_ID"))
+    model_root = source.model_root
     output = Path(output)
     paths = {
         "checkpoints": "Stable-diffusion",
@@ -91,7 +91,7 @@ def configure(output: Path | str = "/comfyui/extra_model_paths.yaml") -> Path:
         if depth_target.exists() or depth_target.is_symlink():
             depth_target.unlink()
         depth_target.symlink_to(depth_source)
-    print(f"cached-model: configured {os.environ['MODEL_REPO_ID']}", flush=True)
+    print(f"model-source: configured {source.kind} at {model_root}", flush=True)
     return output
 
 

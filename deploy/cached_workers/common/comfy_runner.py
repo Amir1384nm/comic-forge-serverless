@@ -15,8 +15,7 @@ import httpx
 
 from .cached_model import (
     force_offline_mode,
-    resolve_snapshot_path,
-    verify_bundle,
+    resolve_model_source,
     write_comfy_extra_paths,
 )
 
@@ -25,20 +24,22 @@ class ComfyRunner:
     def __init__(
         self,
         *,
-        repo_id: str,
+        repo_id: str | None = None,
         port: int = 8188,
         model_layout: dict[str, str] | None = None,
     ):
         force_offline_mode()
-        self.repo_id = repo_id
+        self.repo_id = repo_id or os.environ.get("MODEL_REPO_ID", "")
         self.port = int(port)
         self.base = f"http://127.0.0.1:{self.port}"
         self.comfy_root = Path(os.environ.get("COMFY_ROOT", "/opt/ComfyUI"))
-        self.snapshot = resolve_snapshot_path(repo_id)
-        self.manifest = verify_bundle(self.snapshot)
+        self.source = resolve_model_source(self.repo_id)
+        self.snapshot = self.source.snapshot
+        self.manifest = self.source.manifest
+        self.model_root = self.source.model_root
         self.model_layout = dict(model_layout or {})
         self.extra_paths = write_comfy_extra_paths(
-            self.snapshot,
+            self.model_root,
             Path("/tmp/cached-extra-model-paths.yaml"),
             layout=self.model_layout,
         )
@@ -101,7 +102,7 @@ class ComfyRunner:
             )
 
     def list_loras(self) -> list[str]:
-        root = self.snapshot / "models" / self.model_layout.get("loras", "loras")
+        root = self.model_root / self.model_layout.get("loras", "loras")
         if not root.is_dir():
             return []
         return sorted(

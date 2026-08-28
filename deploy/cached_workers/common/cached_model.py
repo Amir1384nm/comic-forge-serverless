@@ -11,6 +11,7 @@ from __future__ import annotations
 import json
 import os
 import re
+from dataclasses import dataclass
 from pathlib import Path
 
 
@@ -20,6 +21,16 @@ _REPO_PART = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]*$")
 
 class CachedModelError(RuntimeError):
     pass
+
+
+@dataclass(frozen=True)
+class ModelSource:
+    """Verified model tree for a cached snapshot or persistent Volume."""
+
+    kind: str
+    model_root: Path
+    snapshot: Path | None = None
+    manifest: dict | None = None
 
 
 def force_offline_mode() -> None:
@@ -116,6 +127,81 @@ def verify_bundle(snapshot: Path | str) -> dict:
     return manifest
 
 
+def _required_paths_from_env() -> list[tuple[str, int | None]]:
+    raw = os.environ.get("MODEL_REQUIRED_PATHS", "[]").strip()
+    try:
+        rows = json.loads(raw)
+    except json.JSONDecodeError as exc:
+        raise CachedModelError("MODEL_REQUIRED_PATHS must be valid JSON") from exc
+    if not isinstance(rows, list) or not rows:
+        raise CachedModelError(
+            "MODEL_REQUIRED_PATHS is required when MODEL_SOURCE=network_volume"
+        )
+    result: list[tuple[str, int | None]] = []
+    for row in rows:
+        if isinstance(row, str):
+            relative, minimum = row, None
+        elif isinstance(row, dict):
+            relative, minimum = row.get("path"), row.get("min_bytes")
+        else:
+            raise CachedModelError("MODEL_REQUIRED_PATHS has an invalid entry")
+        relative = str(relative or "").strip().replace("\\", "/")
+        path = Path(relative)
+        if not relative or path.is_absolute() or ".." in path.parts:
+            raise CachedModelError("MODEL_REQUIRED_PATHS contains an unsafe path")
+        if minimum is not None:
+            try:
+                minimum = int(minimum)
+            except (TypeError, ValueError) as exc:
+                raise CachedModelError("MODEL_REQUIRED_PATHS min_bytes is invalid") from exc
+            if minimum < 0:
+                raise CachedModelError("MODEL_REQUIRED_PATHS min_bytes is invalid")
+        result.append((path.as_posix(), minimum))
+    return result
+
+
+def verify_model_root(model_root: Path | str) -> None:
+    root = Path(model_root).resolve()
+    if not root.is_dir():
+        raise CachedModelError(f"Network Volume model root is missing: {root}")
+    missing: list[str] = []
+    undersized: list[str] = []
+    for relative, minimum in _required_paths_from_env():
+        path = root / relative
+        if not path.is_file():
+            missing.append(relative)
+        elif minimum is not None and path.stat().st_size < minimum:
+            undersized.append(relative)
+    if missing or undersized:
+        detail = []
+        if missing:
+            detail.append("missing=" + ",".join(missing[:8]))
+        if undersized:
+            detail.append("undersized=" + ",".join(undersized[:8]))
+        raise CachedModelError("Network Volume model tree is incomplete: " + "; ".join(detail))
+
+
+def resolve_model_source(repo_id: str | None = None) -> ModelSource:
+    """Resolve one explicit, offline model source without runtime downloads."""
+    source = os.environ.get("MODEL_SOURCE", "cached").strip().casefold()
+    if source in {"cached", "huggingface_cached", "hf_cached"}:
+        repo_id = repo_id or os.environ.get("MODEL_REPO_ID", "")
+        snapshot = resolve_snapshot_path(str(repo_id))
+        manifest = verify_bundle(snapshot)
+        model_root = snapshot / "models"
+        if not model_root.is_dir():
+            raise CachedModelError("Cached bundle has no models directory")
+        return ModelSource("cached", model_root.resolve(), snapshot, manifest)
+    if source == "network_volume":
+        root = os.environ.get("MODEL_ROOT", "").strip()
+        if not root:
+            raise CachedModelError("MODEL_ROOT is required when MODEL_SOURCE=network_volume")
+        model_root = Path(root).resolve()
+        verify_model_root(model_root)
+        return ModelSource("network_volume", model_root)
+    raise CachedModelError(f"Unsupported MODEL_SOURCE: {source}")
+
+
 def link_tree(source: Path | str, destination: Path | str) -> None:
     """Link a cached directory into a runtime model tree without copying it."""
     source = Path(source).resolve()
@@ -145,7 +231,8 @@ def write_comfy_extra_paths(
     layout: dict[str, str] | None = None,
 ) -> Path:
     """Point ComfyUI at ``snapshot/models``; only a tiny YAML file is written."""
-    model_root = Path(snapshot).resolve() / "models"
+    source = Path(snapshot).resolve()
+    model_root = source / "models" if (source / "models").is_dir() else source
     if not model_root.is_dir():
         raise CachedModelError("Cached bundle has no models directory")
     output = Path(output)
