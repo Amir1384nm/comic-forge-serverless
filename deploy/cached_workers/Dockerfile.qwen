@@ -23,10 +23,12 @@ RUN git init /opt/ComfyUI \
     && git -C /opt/ComfyUI/custom_nodes/ComfyUI-GGUF checkout --detach FETCH_HEAD \
     && rm -rf /opt/ComfyUI/.git /opt/ComfyUI/custom_nodes/ComfyUI-GGUF/.git
 
-RUN python3 -m pip install --no-cache-dir --upgrade pip==25.1.1 \
-    && python3 -m pip install --no-cache-dir -r /opt/ComfyUI/requirements.txt \
-    && python3 -m pip install --no-cache-dir -r /opt/ComfyUI/custom_nodes/ComfyUI-GGUF/requirements.txt \
-    && python3 -m pip install --no-cache-dir runpod==1.12.0 httpx==0.28.1
+# The official image owns its Python environment.  Use its ``pip``/``python``
+# pair rather than Ubuntu's externally-managed ``python3`` interpreter.
+RUN pip install --no-cache-dir --upgrade pip==25.1.1 \
+    && pip install --no-cache-dir -r /opt/ComfyUI/requirements.txt \
+    && pip install --no-cache-dir -r /opt/ComfyUI/custom_nodes/ComfyUI-GGUF/requirements.txt \
+    && pip install --no-cache-dir runpod==1.12.0 httpx==0.28.1
 
 COPY deploy/cached_workers/common /opt/cached-worker/common
 COPY deploy/cached_workers/qwen/handler.py /opt/cached-worker/handler.py
@@ -34,7 +36,7 @@ COPY deploy/cached_workers/qwen/handler.py /opt/cached-worker/handler.py
 ENV PYTHONUNBUFFERED=1 \
     PYTHONPATH=/opt/cached-worker \
     COMFY_ROOT=/opt/ComfyUI \
-    COMFY_PYTHON=python3 \
+    COMFY_PYTHON=python \
     COMFY_PORT=8188 \
     COMFY_MEMORY_MODE=lowvram \
     HF_HUB_OFFLINE=1 \
@@ -42,4 +44,4 @@ ENV PYTHONUNBUFFERED=1 \
     DIFFUSERS_OFFLINE=1 \
     RUNPOD_INIT_TIMEOUT=800
 
-CMD ["python3", "-u", "/opt/cached-worker/handler.py"]
+CMD ["python", "-u", "/opt/cached-worker/handler.py"]
