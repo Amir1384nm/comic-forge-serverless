@@ -1,8 +1,4 @@
-# The official RunPod CUDA 12.8 / Torch 2.8 base removes the custom 2.8GB+
-# PyTorch wheel layer from this worker image.  It is also a common RunPod base,
-# giving FlashBoot a substantially better chance of reusing its immutable
-# layers on a new host.  The model stays on the Network Volume.
-FROM runpod/pytorch:1.0.2-cu1281-torch280-ubuntu2404
+FROM nvidia/cuda:12.8.1-base-ubuntu22.04
 
 ARG DEBIAN_FRONTEND=noninteractive
 ARG COMFY_COMMIT=4f3544d131652678c8070b306f01cce392465cb5
@@ -10,7 +6,7 @@ ARG GGUF_COMMIT=6ea2651e7df66d7585f6ffee804b20e92fb38b8a
 
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
-       ca-certificates ffmpeg git libgl1 libglib2.0-0 python3-pip \
+       ca-certificates ffmpeg git libgl1 libglib2.0-0 python3 python3-pip python3-venv \
     && rm -rf /var/lib/apt/lists/*
 
 RUN git init /opt/ComfyUI \
@@ -23,20 +19,18 @@ RUN git init /opt/ComfyUI \
     && git -C /opt/ComfyUI/custom_nodes/ComfyUI-GGUF checkout --detach FETCH_HEAD \
     && rm -rf /opt/ComfyUI/.git /opt/ComfyUI/custom_nodes/ComfyUI-GGUF/.git
 
-# The official image owns its Python environment.  Use its ``pip``/``python``
-# pair rather than Ubuntu's externally-managed ``python3`` interpreter.
-RUN pip install --no-cache-dir --upgrade pip==25.1.1
+RUN python3 -m venv /opt/venv \
+    && /opt/venv/bin/pip install --no-cache-dir --upgrade pip==25.1.1
 
-# The selected RunPod base already supplies the pinned CUDA 12.8 / Torch 2.8
-# triplet.  Letting ComfyUI's unpinned requirements replace it downloads a
-# second multi-GB CUDA stack and can select an incompatible newer build.
-RUN grep -Ev '^(torch|torchvision|torchaudio)$' /opt/ComfyUI/requirements.txt \
-       > /tmp/comfy-requirements-without-torch.txt \
-    && pip install --no-cache-dir -r /tmp/comfy-requirements-without-torch.txt
+RUN /opt/venv/bin/pip install --no-cache-dir \
+       torch==2.8.0 torchvision==0.23.0 torchaudio==2.8.0 \
+       --index-url https://download.pytorch.org/whl/cu128
 
-RUN pip install --no-cache-dir -r /opt/ComfyUI/custom_nodes/ComfyUI-GGUF/requirements.txt
+RUN /opt/venv/bin/pip install --no-cache-dir -r /opt/ComfyUI/requirements.txt
 
-RUN pip install --no-cache-dir runpod==1.12.0 httpx==0.28.1
+RUN /opt/venv/bin/pip install --no-cache-dir -r /opt/ComfyUI/custom_nodes/ComfyUI-GGUF/requirements.txt
+
+RUN /opt/venv/bin/pip install --no-cache-dir runpod==1.12.0 httpx==0.28.1
 
 COPY deploy/cached_workers/common /opt/cached-worker/common
 COPY deploy/cached_workers/qwen/handler.py /opt/cached-worker/handler.py
@@ -44,7 +38,7 @@ COPY deploy/cached_workers/qwen/handler.py /opt/cached-worker/handler.py
 ENV PYTHONUNBUFFERED=1 \
     PYTHONPATH=/opt/cached-worker \
     COMFY_ROOT=/opt/ComfyUI \
-    COMFY_PYTHON=python \
+    COMFY_PYTHON=/opt/venv/bin/python \
     COMFY_PORT=8188 \
     COMFY_MEMORY_MODE=lowvram \
     HF_HUB_OFFLINE=1 \
@@ -52,4 +46,4 @@ ENV PYTHONUNBUFFERED=1 \
     DIFFUSERS_OFFLINE=1 \
     RUNPOD_INIT_TIMEOUT=800
 
-CMD ["python", "-u", "/opt/cached-worker/handler.py"]
+CMD ["/opt/venv/bin/python", "-u", "/opt/cached-worker/handler.py"]
